@@ -9,7 +9,6 @@
         "dev:teamsfx": "npm run dev",
         "dev": "nodemon --inspect=9239 --signal SIGINT ./index.js",
         "start": "node ./index.js",
-        "startk": "node ./index2.js",
         "watch": "nodemon ./index.js",
         "build": "node build.js",
         "lint": "eslint .",
