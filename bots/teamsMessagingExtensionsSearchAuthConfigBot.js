@@ -49,7 +49,7 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with Activity name of 'composeExtension/queryLink'
     async handleTeamsAppBasedLinkQuery(context, query) {
-        return await executionWithOauthConnect(context, process.env.connectionName, query, async (token) => {
+        return await executionWithOauthConnect(context, process.env.connectionName, async (token) => {
             const graphClient = new SimpleGraphClient(token);
             const profile = await graphClient.GetMyProfile();
             const userPhoto = await graphClient.GetPhotoAsync(token);
@@ -112,7 +112,7 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
             ''
         );
         if (!userSettings || userSettings.includes('profile')) {
-            return await executionWithOauthConnect(context, process.env.connectionName, query, async (token) => {
+            return await executionWithOauthConnect(context, process.env.connectionName, async (token) => {
                 const graphClient = new SimpleGraphClient(token);
                 const profile = await graphClient.GetMyProfile();
                 const userPhoto = await graphClient.GetPhotoAsync(token);
