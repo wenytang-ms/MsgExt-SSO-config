@@ -16,6 +16,7 @@ const axios = require('axios');
 const querystring = require('querystring');
 const { SimpleGraphClient } = require('..\\simpleGraphClient.js');
 const { polyfills } = require('isomorphic-fetch');
+const { executionWithOauthConnect } = require('../sdk/executeMessageExtension.js')
 
 // User Configuration property name
 const USER_CONFIGURATION = 'userConfigurationProperty';
@@ -48,67 +49,28 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with Activity name of 'composeExtension/queryLink'
     async handleTeamsAppBasedLinkQuery(context, query) {
-        console.log('------------------- handleTeamsAppBasedLinkQuery')
-        const userTokenClient = context.turnState.get(context.adapter.UserTokenClientKey);
-        const magicCode =
-            query.state && Number.isInteger(Number(query.state))
-                ? query.state
-                : '';
-        const tokenResponse = await userTokenClient.getUserToken(
-            context.activity.from.id,
-            process.env.connectionName,
-            context.activity.channelId,
-            magicCode
-        );
-
-        if (!tokenResponse || !tokenResponse.token) {
-            // There is no token, so the user has not signed in yet.
-
-            // Retrieve the OAuth Sign in Link to use in the MessagingExtensionResult Suggested Actions
-            // const signInLink = await context.adapter.getSignInLink(
-            //     context,
-            //     process.env.connectionName,
-            // );
-            // const signInLink = "https://www.baidu.com"
-            const signInResource = await userTokenClient.getSignInResource(process.env.connectionName, context.activity);
-            const signInLink = signInResource.signInLink;
-
-            return {
-                composeExtension: {
-                    type: 'auth',
-                    suggestedActions: {
-                        actions: [
-                            {
-                                type: 'openUrl',
-                                value: signInLink,
-                                title: 'Bot Service OAuth'
-                            },
-                        ],
-                    },
-                },
+        return await executionWithOauthConnect(context, process.env.connectionName, query, async (token) => {
+            const graphClient = new SimpleGraphClient(token);
+            const profile = await graphClient.GetMyProfile();
+            const userPhoto = await graphClient.GetPhotoAsync(token);
+            const attachment = CardFactory.thumbnailCard(profile.displayName, CardFactory.images([userPhoto]));
+            const result = {
+                attachmentLayout: 'list',
+                type: 'result',
+                attachments: [attachment]
             };
-        }
-        const graphClient = new SimpleGraphClient(tokenResponse.token);
-        const profile = await graphClient.GetMyProfile();
-        const userPhoto = await graphClient.GetPhotoAsync(tokenResponse.token);
-        const attachment = CardFactory.thumbnailCard(profile.displayName, CardFactory.images([userPhoto]));
-        const result = {
-            attachmentLayout: 'list',
-            type: 'result',
-            attachments: [attachment]
-        };
 
-        const response = {
-            composeExtension: result
-        };
+            const response = {
+                composeExtension: result
+            };
 
-        return response;
+            return response;
+        });
     }
     async handleTeamsMessagingExtensionConfigurationQuerySettingUrl(
         context,
         query
     ) {
-        console.log('------------------------ handleTeamsMessagingExtensionConfigurationQuerySettingUrl')
         // The user has requested the Messaging Extension Configuration page settings url.
         const userSettings = await this.userConfigurationProperty.get(
             context,
@@ -143,7 +105,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/query'.
     async handleTeamsMessagingExtensionQuery(context, query) {
-        console.log('------------------------ handleTeamsMessagingExtensionQuery')
         const searchQuery = query.parameters[0].value;
         const attachments = [];
         const userSettings = await this.userConfigurationProperty.get(
@@ -151,45 +112,20 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
             ''
         );
         if (!userSettings || userSettings.includes('profile')) {
-            // When the Bot Service Auth flow completes, the query.State will contain a magic code used for verification.
-            const userTokenClient = context.turnState.get(context.adapter.UserTokenClientKey);
-            const magicCode =
-                query.state && Number.isInteger(Number(query.state))
-                    ? query.state
-                    : '';
-            const tokenResponse = await userTokenClient.getUserToken(
-                context.activity.from.id,
-                process.env.connectionName,
-                context.activity.channelId,
-                magicCode
-            );
-
-            if (!tokenResponse || !tokenResponse.token) {
-                const signInResource = await userTokenClient.getSignInResource(process.env.connectionName, context.activity);
-                const signInLink = signInResource.signInLink;
+            return await executionWithOauthConnect(context, process.env.connectionName, query, async (token) => {
+                const graphClient = new SimpleGraphClient(token);
+                const profile = await graphClient.GetMyProfile();
+                const userPhoto = await graphClient.GetPhotoAsync(token);
+                const thumbnailCard = CardFactory.thumbnailCard(profile.displayName, CardFactory.images([userPhoto]));
+                attachments.push(thumbnailCard);
                 return {
                     composeExtension: {
-                        type: 'silentAuth',
-                        suggestedActions: {
-                            actions: [
-                                {
-                                    type: 'openUrl',
-                                    value: signInLink,
-                                    title: 'Bot Service OAuth'
-                                },
-                            ],
-                        },
+                        type: 'result',
+                        attachmentLayout: 'list',
+                        attachments: attachments
                     },
                 };
-            }
-
-            // The user is signed in, so use the token to create a Graph Clilent and show profile
-            console.log(tokenResponse.token);
-            const graphClient = new SimpleGraphClient(tokenResponse.token);
-            const profile = await graphClient.GetMyProfile();
-            const userPhoto = await graphClient.GetPhotoAsync(tokenResponse.token);
-            const thumbnailCard = CardFactory.thumbnailCard(profile.displayName, CardFactory.images([userPhoto]));
-            attachments.push(thumbnailCard);
+            });
         } else {
             const response = await axios.get(
                 `http://registry.npmjs.com/-/v1/search?${querystring.stringify({
@@ -220,7 +156,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/selectItem'.
     async handleTeamsMessagingExtensionSelectItem(context, obj) {
-        console.log('------------------------ handleTeamsMessagingExtensionSelectItem')
         return {
             composeExtension: {
                 type: 'result',
@@ -232,7 +167,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/fetchTask'
     async handleTeamsMessagingExtensionFetchTask(context, action) {
-        console.log('------------------------- handleTeamsMessagingExtensionFetchTask')
         if (action.commandId === 'SHOWPROFILE') {
             const magicCode =
                 action.state && Number.isInteger(Number(action.state))
@@ -339,69 +273,8 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
     }
 
     async handleTeamsMessagingExtensionSubmitAction(context, action) {
-        console.log('------------------------- handleTeamsMessagingExtensionSubmitAction')
         // This method is to handle the 'Close' button on the confirmation Task Module after the user signs out.
         return {};
-    }
-
-    async onInvokeActivity(context) {
-        console.log('!!!!!onInvoke, ' + context.activity.name);
-        const valueObj = context.activity.value;
-        if (valueObj.authentication) {
-            console.log('----------------- step1')
-            const authObj = valueObj.authentication;
-            if (authObj.token) {
-                console.log('------------------ step2')
-                // If the token is NOT exchangeable, then do NOT deduplicate requests.
-                if (await this.tokenIsExchangeable(context)) {
-                    console.log('---------------- step3')
-                    return await super.onInvokeActivity(context);
-                }
-                else {
-                    console.log('---------------- step4')
-                    const response = {
-                        status: 412
-                    };
-                    return response;
-                }
-            }
-        }
-
-        if (context.activity.name === "composeExtension/anonymousQueryLink") {
-            const card = CardFactory.adaptiveCard({
-                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                "type": "AdaptiveCard",
-                "version": "1.5",
-                "body": [
-                    {
-                        "type": "TextBlock",
-                        "text": "Zero Link unfurling card",
-                        "weight": "bolder",
-                        "size": "extraLarge"
-                    },
-                    {
-                        "type": "TextBlock",
-                        "text": "Install the app to view full content of the card.",
-                        "size": "large"
-                    }
-                ]
-            });
-
-            const attachment = { ...card, card };
-
-            return ActivityHandler.createInvokeResponse({
-                composeExtension: {
-                    type: 'auth',
-                    attachmentLayout: 'list',
-                    attachments: [
-                        attachment
-                    ]
-                }
-            });
-        }
-        else {
-            return await super.onInvokeActivity(context);
-        }
     }
 
     async tokenIsExchangeable(context) {
