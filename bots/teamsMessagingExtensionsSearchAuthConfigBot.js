@@ -48,7 +48,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with Activity name of 'composeExtension/queryLink'
     async handleTeamsAppBasedLinkQuery(context, query) {
-        console.log('------------------- handleTeamsAppBasedLinkQuery')
         const userTokenClient = context.turnState.get(context.adapter.UserTokenClientKey);
         const magicCode =
             query.state && Number.isInteger(Number(query.state))
@@ -64,12 +63,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
         if (!tokenResponse || !tokenResponse.token) {
             // There is no token, so the user has not signed in yet.
 
-            // Retrieve the OAuth Sign in Link to use in the MessagingExtensionResult Suggested Actions
-            // const signInLink = await context.adapter.getSignInLink(
-            //     context,
-            //     process.env.connectionName,
-            // );
-            // const signInLink = "https://www.baidu.com"
             const signInResource = await userTokenClient.getSignInResource(process.env.connectionName, context.activity);
             const signInLink = signInResource.signInLink;
 
@@ -108,7 +101,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
         context,
         query
     ) {
-        console.log('------------------------ handleTeamsMessagingExtensionConfigurationQuerySettingUrl')
         // The user has requested the Messaging Extension Configuration page settings url.
         const userSettings = await this.userConfigurationProperty.get(
             context,
@@ -143,7 +135,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/query'.
     async handleTeamsMessagingExtensionQuery(context, query) {
-        console.log('------------------------ handleTeamsMessagingExtensionQuery')
         const searchQuery = query.parameters[0].value;
         const attachments = [];
         const userSettings = await this.userConfigurationProperty.get(
@@ -220,7 +211,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/selectItem'.
     async handleTeamsMessagingExtensionSelectItem(context, obj) {
-        console.log('------------------------ handleTeamsMessagingExtensionSelectItem')
         return {
             composeExtension: {
                 type: 'result',
@@ -232,7 +222,6 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
 
     // Overloaded function. Receives invoke activities with the name 'composeExtension/fetchTask'
     async handleTeamsMessagingExtensionFetchTask(context, action) {
-        console.log('------------------------- handleTeamsMessagingExtensionFetchTask')
         if (action.commandId === 'SHOWPROFILE') {
             const magicCode =
                 action.state && Number.isInteger(Number(action.state))
@@ -339,26 +328,21 @@ class TeamsMessagingExtensionsSearchAuthConfigBot extends TeamsActivityHandler {
     }
 
     async handleTeamsMessagingExtensionSubmitAction(context, action) {
-        console.log('------------------------- handleTeamsMessagingExtensionSubmitAction')
         // This method is to handle the 'Close' button on the confirmation Task Module after the user signs out.
         return {};
     }
 
     async onInvokeActivity(context) {
-        console.log('!!!!!onInvoke, ' + context.activity.name);
+        console.log('onInvoke, ' + context.activity.name);
         const valueObj = context.activity.value;
         if (valueObj.authentication) {
-            console.log('----------------- step1')
             const authObj = valueObj.authentication;
             if (authObj.token) {
-                console.log('------------------ step2')
                 // If the token is NOT exchangeable, then do NOT deduplicate requests.
                 if (await this.tokenIsExchangeable(context)) {
-                    console.log('---------------- step3')
                     return await super.onInvokeActivity(context);
                 }
                 else {
-                    console.log('---------------- step4')
                     const response = {
                         status: 412
                     };

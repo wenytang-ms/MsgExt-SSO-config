@@ -15,7 +15,7 @@ const { env } = require('process');
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
 const { UserState, MemoryStorage, CloudAdapter, ConfigurationBotFrameworkAuthentication } = require('botbuilder');
-const { TeamsMessagingExtensionsSearchAuthConfigBot } = require('./bot2/teamsMessagingExtensionsSearchAuthConfigBot');
+const { TeamsMessagingExtensionsSearchAuthConfigBot } = require('./bots/teamsMessagingExtensionsSearchAuthConfigBot');
 
 const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication(process.env);
 
